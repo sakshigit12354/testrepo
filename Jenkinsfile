@@ -4,14 +4,10 @@ BUILD_ENVIRONMENT = woodmac.getJenkinsEnvironment() == 'prod' ? 'iprod' : 'dev'
 KONG_ENVIRONMENT = params.KONG_ENVIRONMENT
 
 pipeline {
+    agent any
+    
     parameters {
         choice(name: 'KONG_ENVIRONMENT', choices: (BUILD_ENVIRONMENT == "iprod" ? ['iuat', 'iprod'] : ["dev", "int"]), description: 'Kong Environment to Sync')
-    }
-
-    agent {
-        ecs {
-            inheritFrom "dynamic-us-east-1-${BUILD_ENVIRONMENT}"
-        }
     }
 
     options {
