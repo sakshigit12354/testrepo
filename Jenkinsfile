@@ -8,6 +8,7 @@ pipeline {
     }
 
     environment {
+        KONG_ENVIRONMENT = "test"
         KONNECT_CONTROLPLANE_NAME = "cp-test-np"
     }
 
