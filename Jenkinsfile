@@ -30,6 +30,13 @@ pipeline {
                     '''
                     echo "Syncing Kong Configuration for ${KONG_ENVIRONMENT}"
                     // Your synchronization logic here
+                    
+                    // Ensure the directory containing deck is in the PATH
+                    sh 'export PATH=$PATH:~/ && echo $PATH'
+
+                    // Check if deck executable exists
+                    sh 'which deck || echo "deck not found in PATH"'
+
                     sh(script: '''#!/bin/bash
                         export DECK_KONNECT_TOKEN=kpat_ki3SNw038BdTMWRxoK9U7iNTfBeKDl13LmsHCAvGlMbQ7IBIR
                         deck sync \
