@@ -22,6 +22,12 @@ pipeline {
             }
             steps {
                 script {
+                    echo "Installing Deck"
+                    sh '''
+                        wget -O /tmp/deck https://example.com/deck
+                        chmod +x /tmp/deck
+                        export PATH=$PATH:/tmp
+                    '''
                     echo "Syncing Kong Configuration for ${KONG_ENVIRONMENT}"
                     // Your synchronization logic here
                     sh(script: '''#!/bin/bash
