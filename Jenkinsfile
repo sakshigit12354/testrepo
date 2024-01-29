@@ -1,6 +1,5 @@
 #!/bin/groovy
 
-BUILD_ENVIRONMENT = woodmac.getJenkinsEnvironment() == 'prod' ? 'iprod' : 'dev'
 KONG_ENVIRONMENT = params.KONG_ENVIRONMENT
 
 pipeline {
