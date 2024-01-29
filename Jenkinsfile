@@ -13,13 +13,7 @@ pipeline {
     }
 
     stages {
-        stage('Sync Kong Configuration') {
-            when {
-                anyOf {
-                    branch 'main' // Multibranch pipeline (dev and int)
-                    environment(name: "GIT_BRANCH", value: "origin/main") // Single branch pipeline (uat and prod)
-                }
-            }
+        stage('Install Deck') {
             steps {
                 script {
                     echo "Installing Deck"
@@ -28,7 +22,20 @@ pipeline {
                         tar -xf deck.tar.gz -C /tmp
                         cp /tmp/deck ~/deck
                     '''
+                }
+            }
+        }
+
+        stage('Sync Kong Configuration') {
+            steps {
+                script {
                     echo "Syncing Kong Configuration for ${KONG_ENVIRONMENT}"
+                    // Ensure the directory containing deck is in the PATH
+                    sh 'export PATH=$PATH:~/ && echo $PATH'
+
+                    // Check if deck executable exists
+                    sh 'which deck || echo "deck not found in PATH"'
+
                     // Your synchronization logic here
                     sh(script: '''#!/bin/bash
                         export DECK_KONNECT_TOKEN=kpat_ki3SNw038BdTMWRxoK9U7iNTfBeKDl13LmsHCAvGlMbQ7IBIR
@@ -40,5 +47,4 @@ pipeline {
                 }
             }
         }
-    }
 }
