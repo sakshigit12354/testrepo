@@ -1,5 +1,4 @@
 #!/bin/groovy
-@Library(['utils', 'gatekeepers']) _
 
 BUILD_ENVIRONMENT = woodmac.getJenkinsEnvironment() == 'prod' ? 'iprod' : 'dev'
 KONG_ENVIRONMENT = params.KONG_ENVIRONMENT
