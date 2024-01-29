@@ -1,0 +1,431 @@
+_format_version: "3.0"
+_info:
+  defaults: {}
+  select_tags:
+  - cms-data-abstraction
+  - ${{ env "DECK_ENVIRONMENT" }}
+_konnect: 
+  control_plane_name: ${{ env "DECK_KONNECT_CONTROL_PLANE_NAME" }}
+consumers:
+- acls:
+  - group: cms-api-group-access-${{ env "DECK_ENVIRONMENT" }}
+  username: cms-api-${{ env "DECK_ENVIRONMENT" }}
+
+services:
+# -------------------------------------------------------------------- #
+# Root path
+- connect_timeout: 55000
+  host: home-cms-data-abstraction.${{ env "DECK_ENVIRONMENT" }}.woodmac.com
+  name: root-path-${{ env "DECK_ENVIRONMENT" }}
+  path: /
+  port: 443
+  protocol: https
+  read_timeout: 60000
+  retries: 5
+  routes:
+  - hosts:
+    - ${{ env "DECK_KONG_DATA_PLANE_HOST" }}
+    https_redirect_status_code: 426
+    methods:
+    - GET
+    name: root-route-${{ env "DECK_ENVIRONMENT" }}
+    path_handling: v0
+    paths:
+    - /cms-data-abstraction
+    - /cms-data-abstraction/
+    preserve_host: false
+    protocols:
+    - https
+    regex_priority: 0
+    request_buffering: true
+    response_buffering: true
+    strip_path: true
+  write_timeout: 60000
+
+# -------------------------------------------------------------------- #
+# data-api-economic-and-cost configuration
+- connect_timeout: 55000
+  host: cms-data-abstraction.${{ env "DECK_ENVIRONMENT" }}.woodmac.com
+  name: data-api-economic-and-cost-${{ env "DECK_ENVIRONMENT" }}
+  path: /data-api-economic-and-cost
+  plugins:
+  - config:
+      key_names:
+      - apikey
+    enabled: true
+    name: key-auth
+    protocols:
+    - grpc
+    - grpcs
+    - http
+    - https
+  - config:
+      allow:
+      - cms-api-group-access-${{ env "DECK_ENVIRONMENT" }}
+    enabled: true
+    name: acl
+  port: 443
+  protocol: https
+  read_timeout: 90000
+  retries: 5
+  routes:
+  # Catch-all data layer route
+  - hosts:
+    - ${{ env "DECK_KONG_DATA_PLANE_HOST" }}
+    https_redirect_status_code: 426
+    methods:
+    - GET
+    - POST
+    - DELETE
+    - PUT
+    name: data-api-economic-and-cost-${{ env "DECK_ENVIRONMENT" }}
+    path_handling: v0
+    paths:
+    - /cms-data-abstraction/data-api-economic-and-cost
+    preserve_host: false
+    protocols:
+    - https
+    regex_priority: 0
+    request_buffering: true
+    response_buffering: true
+    strip_path: true
+  # Dynamic route - Presentation to Data layer proxy
+  - hosts:
+    - ${{ env "DECK_KONG_DATA_PLANE_HOST" }}
+    https_redirect_status_code: 426
+    methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    name: presentation-to-data-layer-route-${{ env "DECK_ENVIRONMENT" }}
+    path_handling: v0
+    paths:
+    # Add a new line to match the table name to be proxied to data layer
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aaea2.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aasc1.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aad1.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aac/.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aakf2/timeline.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aaitv1.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>reservoir/quality.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aaea3.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>discount/date.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>ma001.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>ma002.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>ma003.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>ma004.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>ma005.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>ma007.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>ma008.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>pt1/opexYearRange.*)
+    plugins:
+    - config:
+        replace:
+          body: []
+          headers: []
+          querystring: []
+          uri: /data-api-economic-and-cost/v1/$(uri_captures['table'])
+      enabled: true
+      name: request-transformer-advanced
+      protocols:
+      - https
+    preserve_host: false
+    protocols:
+    - https
+    regex_priority: 0
+    request_buffering: true
+    response_buffering: true
+    strip_path: true
+  # END - Dynamic route - Presentation to Data layer proxy
+  write_timeout: 60000
+
+# -------------------------------------------------------------------- #
+# calculation-api-asset configuration  
+- connect_timeout: 55000
+  host: cms-data-abstraction.${{ env "DECK_ENVIRONMENT" }}.woodmac.com
+  name: calculation-api-asset-${{ env "DECK_ENVIRONMENT" }}
+  path: /calculation-api-asset
+  plugins:
+  - config:
+      key_names:
+      - apikey
+    enabled: true
+    name: key-auth
+    protocols:
+    - grpc
+    - grpcs
+    - http
+    - https
+  - config:
+      allow:
+      - cms-api-group-access-${{ env "DECK_ENVIRONMENT" }}
+    enabled: true
+    name: acl
+  port: 443
+  protocol: https
+  read_timeout: 90000
+  retries: 5
+  routes:
+  # Catch-All calculation layer route
+  - hosts:
+    - ${{ env "DECK_KONG_DATA_PLANE_HOST" }}
+    https_redirect_status_code: 426
+    methods:
+    - GET
+    - POST
+    - DELETE
+    - PUT
+    name: calculation-api-asset-${{ env "DECK_ENVIRONMENT" }}
+    path_handling: v0
+    paths:
+    - /cms-data-abstraction/calculation-api-asset
+    preserve_host: false
+    protocols:
+    - https
+    regex_priority: 0
+    request_buffering: true
+    response_buffering: true
+    strip_path: true
+  # Dynamic route - Presentation to Calculation layer proxy
+  - hosts:
+    - ${{ env "DECK_KONG_DATA_PLANE_HOST" }}
+    https_redirect_status_code: 426
+    methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    name: presentation-to-calculation-layer-route-${{ env "DECK_ENVIRONMENT" }}
+    path_handling: v0
+    paths:
+    # Add a new line to match the table name to be proxied to calculation layer
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aacf2.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aacf3.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aar1/data.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aakf2/fieldDetails.*)
+    - ~/cms-data-abstraction/presentation-api-asset/v1/(?<table>aap2.*)
+    plugins:
+    - config:
+        replace:
+          body: []
+          headers: []
+          querystring: []
+          uri: /calculation-api-asset/v1/$(uri_captures['table'])
+      enabled: true
+      name: request-transformer-advanced
+      protocols:
+      - https
+    preserve_host: false
+    protocols:
+    - https
+    regex_priority: 0
+    request_buffering: true
+    response_buffering: true
+    strip_path: true
+  # END - Dynamic route - Presentation to Calculation layer proxy
+  write_timeout: 60000
+
+# -------------------------------------------------------------------- #
+# presentation-api-asset configuration
+- connect_timeout: 55000
+  host: cms-data-abstraction.${{ env "DECK_ENVIRONMENT" }}.woodmac.com
+  name: presentation-api-asset-${{ env "DECK_ENVIRONMENT" }}
+  path: /presentation-api-asset
+  plugins:
+  - config:
+      key_names:
+      - apikey
+    enabled: true
+    name: key-auth
+    protocols:
+    - grpc
+    - grpcs
+    - http
+    - https
+  - config:
+      allow:
+      - cms-api-group-access-${{ env "DECK_ENVIRONMENT" }}
+    enabled: true
+    name: acl
+  port: 443
+  protocol: https
+  read_timeout: 90000
+  retries: 5
+  routes:
+  - hosts:
+    - ${{ env "DECK_KONG_DATA_PLANE_HOST" }}
+    https_redirect_status_code: 426
+    methods:
+    - GET
+    - POST
+    - DELETE
+    - PUT
+    name: presentation-api-asset-${{ env "DECK_ENVIRONMENT" }}
+    path_handling: v0
+    paths:
+    - /cms-data-abstraction/presentation-api-asset
+    preserve_host: false
+    protocols:
+    - https
+    regex_priority: 0
+    request_buffering: true
+    response_buffering: true
+    strip_path: true
+  write_timeout: 60000
+
+# -------------------------------------------------------------------- #
+# WM- Authoring Api
+- connect_timeout: 55000
+  host: cms-data-abstraction.${{ env "DECK_ENVIRONMENT" }}.woodmac.com
+  name: wmwc-authoring-api-${{ env "DECK_ENVIRONMENT" }}
+  path: /wmwc-authoring-api
+  plugins:
+  - config:
+      key_names:
+      - apikey
+    enabled: true
+    name: key-auth
+    protocols:
+    - grpc
+    - grpcs
+    - http
+    - https
+  - config:
+      allow:
+      - cms-api-group-access-${{ env "DECK_ENVIRONMENT" }}
+    enabled: true
+    name: acl
+  port: 443
+  protocol: https
+  read_timeout: 90000
+  retries: 5
+  routes:
+  - hosts:
+    - ${{ env "DECK_KONG_DATA_PLANE_HOST" }}
+    https_redirect_status_code: 426
+    methods:
+    - GET
+    - POST
+    - DELETE
+    - PUT
+    name: wmwc-authoring-api-${{ env "DECK_ENVIRONMENT" }}
+    path_handling: v0
+    paths:
+    - /cms-data-abstraction/wmwc-authoring-api
+    preserve_host: false
+    protocols:
+    - https
+    regex_priority: 0
+    request_buffering: true
+    response_buffering: true
+    strip_path: true
+  write_timeout: 60000
+
+# -------------------------------------------------------------------- #
+# WM- Lens Api
+- connect_timeout: 55000
+  host: cms-data-abstraction.${{ env "DECK_ENVIRONMENT" }}.woodmac.com
+  name: wmwc-lens-api-${{ env "DECK_ENVIRONMENT" }}
+  path: /wmwc-lens-api
+  plugins:
+  - config:
+      key_names:
+      - apikey
+    enabled: false
+    name: key-auth
+    protocols:
+    - grpc
+    - grpcs
+    - http
+    - https
+  - config:
+      credentials: true
+      methods:
+      - GET
+      - HEAD
+      - PUT
+      - PATCH
+      - POST
+      - DELETE
+      - OPTIONS
+      - TRACE
+      - CONNECT
+      origins:
+      - .*\.woodmac\.com
+    enabled: true
+    name: cors
+    protocols:
+    - grpc
+    - grpcs
+    - http
+    - https
+  port: 443
+  protocol: https
+  read_timeout: 60000
+  retries: 5
+  routes:
+  - hosts:
+    - ${{ env "DECK_KONG_DATA_PLANE_HOST" }}
+    https_redirect_status_code: 426
+    methods:
+    - GET
+    - POST
+    - DELETE
+    - PUT
+    - OPTIONS
+    name: wmwc-lens-api-${{ env "DECK_ENVIRONMENT" }}
+    path_handling: v0
+    paths:
+    - /cms-data-abstraction/wmwc-lens-api
+    preserve_host: false
+    protocols:
+    - https
+    regex_priority: 0
+    request_buffering: true
+    response_buffering: true
+    strip_path: true
+  write_timeout: 60000
+
+# -------------------------------------------------------------------- #
+# Swagger config (no authentication)
+- connect_timeout: 55000
+  host: cms-data-abstraction.${{ env "DECK_ENVIRONMENT" }}.woodmac.com
+  name: swagger-${{ env "DECK_ENVIRONMENT" }}
+  path: /
+  port: 443
+  protocol: https
+  read_timeout: 60000
+  retries: 5
+  routes:
+  - hosts:
+    - ${{ env "DECK_KONG_DATA_PLANE_HOST" }}
+    https_redirect_status_code: 426
+    methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    name: swagger-route-${{ env "DECK_ENVIRONMENT" }}
+    path_handling: v0
+    paths:
+    - ~/cms-data-abstraction/(?<service>.*)/docs/(?<urlPart>.*)
+    plugins:
+    - config:
+        replace:
+          body: []
+          headers: []
+          querystring: []
+          uri: /$(uri_captures['service'])/docs/$(uri_captures['urlPart'])
+      enabled: true
+      name: request-transformer-advanced
+      protocols:
+      - https
+    preserve_host: false
+    protocols:
+    - https
+    regex_priority: 0
+    request_buffering: true
+    response_buffering: true
+    strip_path: true
+  write_timeout: 60000
