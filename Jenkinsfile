@@ -1,14 +1,8 @@
 #!/bin/groovy
 
-KONG_ENVIRONMENT = params.KONG_ENVIRONMENT
-
 pipeline {
     agent any
     
-    parameters {
-        choice(name: 'KONG_ENVIRONMENT', choices: (BUILD_ENVIRONMENT == "iprod" ? ['iuat', 'iprod'] : ["dev", "int"]), description: 'Kong Environment to Sync')
-    }
-
     options {
         disableConcurrentBuilds()
     }
