@@ -24,9 +24,9 @@ pipeline {
                 script {
                     echo "Installing Deck"
                     sh '''
-                        wget -O /tmp/deck https://example.com/deck
-                        chmod +x /tmp/deck
-                        export PATH=$PATH:/tmp
+                        curl -sL https://github.com/kong/deck/releases/download/v1.30.0/deck_1.30.0_linux_amd64.tar.gz -o deck.tar.gz
+                        tar -xf deck.tar.gz -C /tmp
+                        sudo cp /tmp/deck /usr/local/bin/
                     '''
                     echo "Syncing Kong Configuration for ${KONG_ENVIRONMENT}"
                     // Your synchronization logic here
