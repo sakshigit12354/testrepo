@@ -1,0 +1,132 @@
+#!/bin/groovy
+@Library(['utils', 'gatekeepers']) _
+
+AWS_REGION = 'us-east-1'
+BUILD_ENVIRONMENT = woodmac.getJenkinsEnvironment()=='prod'?'iprod':'dev'
+PROJECT_PREFIX = 'wmwc'
+SERVICE_NAME = 'cms-data-abstraction'
+
+
+pipeline {
+    
+    parameters {
+        choice(name: 'KONG_ENVIRONMENT', choices: (BUILD_ENVIRONMENT == "iprod" ?['iuat', 'iprod']:["dev", "int"]), description: 'Kong Environment to Sync')
+    }
+
+    agent {
+        ecs {
+            inheritFrom "dynamic-${AWS_REGION}-${BUILD_ENVIRONMENT}"
+            taskrole woodmac.getAgentRole(
+                    region: AWS_REGION,
+                    environment: BUILD_ENVIRONMENT,
+                    parameterName: "/${PROJECT_PREFIX}/${SERVICE_NAME}-${params.KONG_ENVIRONMENT}/agent-role-name",
+            )
+            image "harbor.prod.woodmac.com/wm-lens-markets/lens-markets-jenkins-node-java17"
+        }
+    }
+
+    triggers {
+        bitbucketPush()
+    }
+
+    options {
+        disableConcurrentBuilds()
+    }
+
+    environment {
+        AWS_REGION = "${AWS_REGION}"
+        KONG_ENVIRONMENT = "${params.KONG_ENVIRONMENT}"
+        KONNECT_CONTROLPLANE_NAME = "cp-woodmac-cms-data-abstraction-np"
+    }
+
+    stages {
+        stage('Sync Kong Configuration'){
+            when {
+                anyOf {
+                    branch 'main' // Multibranch pipeline (dev and int)
+                    environment(name: "GIT_BRANCH", value: "origin/main") // Single branch pipeline (uat and prod)
+                }
+            }
+            steps {                
+                sh(script: '''#!/bin/bash
+                    curl -o api-tool.sh https://nexus.prod.woodmac.com/repository/api-gateway/api-gateway-configuration-konnect/api-tool.sh && \
+                    chmod +x api-tool.sh''',
+                label: "Get api tool")
+
+                sh(script:'''#!/bin/bash
+                    if [[ "${KONG_ENVIRONMENT}" == 'prod' || "${KONG_ENVIRONMENT}" == 'uat' || "${KONG_ENVIRONMENT}" == 'iprod' || "${KONG_ENVIRONMENT}" == 'iuat' ]]; then
+                        KONNECT_CONTROLPLANE_NAME="cp-woodmac-cms-data-abstraction-prod"
+                    fi
+
+                    aws secretsmanager get-secret-value \
+                        --region=$AWS_REGION \
+                        --secret-id "/api-gateway/configuration/$KONNECT_CONTROLPLANE_NAME" \
+                        --query "SecretString" \
+                        --output text | jq -r '.RbacToken' >  kong_token
+
+                    TOKEN_FILE=$(pwd)/kong_token ./api-tool.sh sync \
+                        -e $KONG_ENVIRONMENT \
+                        -s $(pwd)/kong-config/kong.yaml \
+                        -c $KONNECT_CONTROLPLANE_NAME''',
+                label: "Sync configuration")
+            }
+        }
+
+        stage('Sync Api Key'){
+            when {
+                anyOf {
+                    branch 'main' // Multibranch pipeline (dev and int)
+                    environment(name: "GIT_BRANCH", value: "origin/main") // Single branch pipeline (uat and prod)
+                }
+            }
+            steps {                
+                script {
+                    def KONNECT_CONTROLPLANE_NAME = KONG_ENVIRONMENT == 'iuat' || KONG_ENVIRONMENT == 'uat' || KONG_ENVIRONMENT == 'iprod' || KONG_ENVIRONMENT == 'prod' ? 'cp-woodmac-cms-data-abstraction-prod' : "cp-woodmac-cms-data-abstraction-np"
+                    def API_KEY_SECRET = "/api-gateway/configuration/${KONNECT_CONTROLPLANE_NAME}"
+                    
+                    echo "Using Secret ID: ${API_KEY_SECRET}"
+                    
+                    sh(script:"""#!/bin/bash
+                    
+                    API_KEY=`aws secretsmanager get-secret-value \
+                    --region=\"$AWS_REGION\" \
+                    --secret-id cms-data-\"$KONG_ENVIRONMENT\" \
+                    --query "SecretString" \
+                    --output text | jq -r '.CMSDATA_API_KEY'`
+
+                    KONG_TOKEN=`aws secretsmanager get-secret-value \
+                        --region=\"$AWS_REGION\" \
+                        --secret-id ${API_KEY_SECRET} \
+                        --query "SecretString" \
+                        --output text | jq -r '.RbacToken'`
+                        
+                    CONTROL_PLANE_ID=`aws secretsmanager get-secret-value \
+                        --region=\"$AWS_REGION\" \
+                        --secret-id ${API_KEY_SECRET} \
+                        --query "SecretString" \
+                        --output text | jq -r '.ControlPlaneID'`
+                    
+                    KONG_URL="https://us.api.konghq.com/v2/control-planes/\$CONTROL_PLANE_ID/core-entities/consumers/cms-api-\$KONG_ENVIRONMENT"
+                    
+                    echo "url: \$KONG_URL"
+
+                    CONSUMER_ID=`curl --location --request GET \$KONG_URL \
+                        --header "Authorization: Bearer \$KONG_TOKEN" \
+                        | jq -r '.id'`
+                    
+                    echo "Consumer ID: \$CONSUMER_ID"
+
+                    KONG_URL="https://us.api.konghq.com/v2/control-planes/\$CONTROL_PLANE_ID/core-entities/consumers/\$CONSUMER_ID/key-auth"    
+                    
+                    curl --location --request POST \$KONG_URL \
+                    --header "Authorization: Bearer \$KONG_TOKEN" \
+                    --header 'Content-Type: application/json' \
+                    --data-raw "{
+                        \\"key\\": \\"\$API_KEY\\"
+                    }" | sed "s/\$API_KEY/xx/g"
+                    """)
+                }
+            }
+        }
+    }
+}
