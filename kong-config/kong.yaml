@@ -8,5 +8,5 @@ _konnect:
   control_plane_name: cp-test-np
 consumers:
 - acls:
-  - group: cms-api-group-access-${{ env "DECK_ENVIRONMENT" }}
-  username: cms-api-${{ env "KONG_ENVIRONMENT" }}
+  - group: cms-api-group-access
+  username: cms-api
