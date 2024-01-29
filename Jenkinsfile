@@ -26,16 +26,12 @@ pipeline {
                     sh '''
                         curl -sL https://github.com/kong/deck/releases/download/v1.30.0/deck_1.30.0_linux_amd64.tar.gz -o deck.tar.gz
                         tar -xf deck.tar.gz -C /tmp
-                        cp /tmp/deck ~/deck
+                        cp /tmp/deck /var/jenkins_home/deck
                     '''
                     echo "Syncing Kong Configuration for ${KONG_ENVIRONMENT}"
                     // Your synchronization logic here
                     
-                    // Ensure the directory containing deck is in the PATH
-                    sh 'export PATH=$PATH:~/ && echo $PATH'
-
-                    // Check if deck executable exists
-                    sh 'which deck || echo "deck not found in PATH"'
+                    sh 'ls -l /var/jenkins_home/deck || echo "deck not found in specified location"'
 
                     sh(script: '''#!/bin/bash
                         export DECK_KONNECT_TOKEN=kpat_ki3SNw038BdTMWRxoK9U7iNTfBeKDl13LmsHCAvGlMbQ7IBIR
